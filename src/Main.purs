@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import Concur.Core (Widget(..), WidgetF(..), display, liftAsyncEff)
+import Concur.Core (Widget(..), WidgetF(..), display, liftAsyncEff, mapView)
 import Concur.Notify (AsyncEff, Channel, await, newChannel, runAsyncEff, yield)
 import Control.Alt ((<|>))
 import Control.Monad.Eff (Eff)
@@ -22,7 +22,7 @@ widget :: forall eff. Channel String -> Widget View (console :: CONSOLE | eff) U
 widget kbd =
   text "Hello"
   <|>
-  textInput kbd
+  mapView (map ("| " <> _)) (textInput kbd)
   <|>
   text "Bar"
 
