@@ -5,6 +5,7 @@ import Prelude
 import Control.Alternative (class Alt, class Alternative, class Plus)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (class MonadEff)
+import Control.Monad.Rec.Class (class MonadRec, Step(..), tailRecM)
 
 newtype AsyncEff eff a = AsyncEff ((a -> Eff eff Unit) -> Eff eff Unit)
 
@@ -31,6 +32,13 @@ instance bindAsyncEff :: Bind (AsyncEff eff) where
         runAsyncEff (y x) k
 
 instance monadAsyncEff :: Monad (AsyncEff eff)
+
+instance monadRecAsyncEff :: MonadRec (AsyncEff eff) where
+  tailRecM f x = do
+    step <- f x
+    case step of
+      Done y -> pure y
+      Loop x' -> tailRecM f x'
 
 instance monadEffAsyncEff :: MonadEff eff (AsyncEff eff) where
   liftEff eff = AsyncEff $ \k -> eff >>= k
