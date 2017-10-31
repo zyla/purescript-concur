@@ -2,12 +2,14 @@ module Concur.React where
 
 import Prelude
 
-import Concur.Core (Widget, awaitViewAction, display, liftAsyncEff, mapView, runWidgetWith)
-import Concur.Notify (AsyncEff, Channel, newChannel, runAsyncEff, yield)
-import Control.Alternative (alt, empty)
+import Concur.Core (class MonadView, Widget, awaitViewAction, display, liftAsyncEff, mapView, orr, runWidgetWith)
+import Concur.Notify (AsyncEff, Channel, await, newChannel, runAsyncEff, yield)
+import Control.Alt (alt)
+import Control.Alternative (class Alternative, alt, empty)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Uncurried (mkEffFn1)
+import Control.Monad.State (StateT(..), mapStateT)
 import DOM (DOM)
 import DOM.HTML.HTMLTextAreaElement (validity)
 import DOM.Node.Node (appendChild)
@@ -18,7 +20,7 @@ import Data.Maybe (Maybe(..))
 import Data.Ref (Ref, newRef, readRef, writeRef)
 import React (Event, ReactElement, createElementTagName, createElementTagNameDynamic)
 import React.DOM as R
-import React.DOM.Props (unsafeFromPropsArray)
+import React.DOM.Props (Props, unsafeFromPropsArray)
 import React.DOM.Props as P
 import ReactDOM (render)
 import Unsafe.Coerce (unsafeCoerce)
@@ -36,14 +38,16 @@ runWidget root widget = do
 unsafeNodeToElement :: Node -> Element
 unsafeNodeToElement = unsafeCoerce
 
-el :: forall props eff a
-   . String
-  -> { | props }
-  -> Array (Widget HTML eff a)
-  -> Widget HTML eff a
+el :: forall a m
+   . MonadView HTML m
+  => Alternative m
+  => String
+  -> Array Props
+  -> Array (m a)
+  -> m a
 el tag props =
-  mapView (\elems -> [createElementTagName tag props elems])
-    <<< foldr alt empty
+  orr >>>
+  mapView (\elems -> [createElementTagName tag (unsafeFromPropsArray props) elems])
 
 text :: forall eff a. String -> Widget HTML eff a
 text t = display [R.text t]
@@ -62,3 +66,12 @@ input value =
 
 unsafeTargetValue :: Event -> String
 unsafeTargetValue event = (unsafeCoerce event).target.value
+
+-- | A button widget. Returns when pressed.
+button :: forall eff. Array Props -> Array (Widget HTML eff Unit) -> Widget HTML eff Unit
+button props children = do
+  channel <- liftAsyncEff newChannel
+  let handleClick _event = runAsyncEff (yield channel unit) pure
+  el "button" (props <> [P.onClick handleClick]) $
+    [ liftAsyncEff (await channel) ] <>
+    children

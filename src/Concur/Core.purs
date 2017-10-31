@@ -3,11 +3,13 @@ module Concur.Core where
 import Prelude
 
 import Concur.Notify (AsyncEff, Channel, await, never, newChannel)
-import Control.Alt (class Alt, (<|>))
+import Control.Alt (class Alt, alt, (<|>))
 import Control.Alternative (class Alternative, class Plus, empty)
 import Control.Monad.Eff.Class (class MonadEff, liftEff)
 import Control.Monad.Free (Free, foldFree, hoistFree, liftF, resume)
 import Control.Monad.Rec.Class (class MonadRec)
+import Control.Monad.State (StateT(..), mapStateT)
+import Data.Array (foldr)
 import Data.Either (Either(..))
 import Data.Monoid (class Monoid, mempty)
 import Data.Newtype (class Newtype, over)
@@ -61,8 +63,8 @@ awaitViewAction f = do
 display :: forall v eff a. v -> Widget v eff a
 display v = Widget $ liftF $ Display v never
 
-mapView :: forall v v' eff a. (v -> v') -> Widget v eff a -> Widget v' eff a
-mapView f = over Widget (hoistFree (\(Display v k) -> Display (f v) k))
+mapViewWidget :: forall v v' eff. (v -> v') -> Widget v eff ~> Widget v' eff
+mapViewWidget f = over Widget (hoistFree (\(Display v k) -> Display (f v) k))
 
 runWidgetWith :: forall v eff a. (v -> AsyncEff eff Unit) -> Widget v eff a -> AsyncEff eff a
 runWidgetWith onViewChange (Widget w) = foldFree f w
@@ -71,3 +73,15 @@ runWidgetWith onViewChange (Widget w) = foldFree f w
     f (Display v k) = do
       onViewChange v
       k
+
+class MonadView v m | m -> v where
+  mapView :: (v -> v) -> m ~> m
+
+instance monadViewWidget :: MonadView v (Widget v eff) where
+  mapView = mapViewWidget
+
+instance monadViewStateT :: MonadView v m => MonadView v (StateT s m) where
+  mapView f = mapStateT (mapView f)
+
+orr :: forall m a. Alternative m => Array (m a) -> m a
+orr = foldr alt empty
