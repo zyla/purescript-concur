@@ -62,12 +62,3 @@ input value =
 
 unsafeTargetValue :: Event -> String
 unsafeTargetValue event = (unsafeCoerce event).target.value
-
-{-
-onInputHandler :: forall eff. Channel String -> Node -> Eff eff Unit
-onInputHandler channel node = do
-  setEventHandler node "oninput" (do
-    value <- getValue node
-    runAsyncEff (yield channel value) pure
-    )
-    -}
