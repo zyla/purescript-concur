@@ -1,12 +1,6 @@
-exports.onStdin = function(handler) {
+// getElementById :: String -> Eff eff Node
+exports.getElementById = function(id) {
   return function() {
-    console.log('onStdin');
-    process.stdin.on('readable', function() {
-      var chunk = process.stdin.read();
-      if(chunk !== null) {
-        console.log('stdin available');
-        handler(chunk)();
-      }
-    });
+    return document.getElementById(id);
   };
 };

@@ -5,13 +5,12 @@ import Prelude
 import Concur.Notify (AsyncEff, Channel, await, never, newChannel)
 import Control.Alt (class Alt, (<|>))
 import Control.Alternative (class Alternative, class Plus, empty)
-import Control.Applicative (unless)
 import Control.Monad.Eff.Class (class MonadEff, liftEff)
-import Control.Monad.Free (Free, hoistFree, liftF, resume)
+import Control.Monad.Free (Free, foldFree, hoistFree, liftF, resume)
 import Control.Monad.Rec.Class (class MonadRec)
 import Data.Either (Either(..))
 import Data.Monoid (class Monoid, mempty)
-import Data.Newtype (class Newtype, over, under)
+import Data.Newtype (class Newtype, over)
 
 data Notify a
 
@@ -64,3 +63,11 @@ display v = Widget $ liftF $ Display v never
 
 mapView :: forall v v' eff a. (v -> v') -> Widget v eff a -> Widget v' eff a
 mapView f = over Widget (hoistFree (\(Display v k) -> Display (f v) k))
+
+runWidgetWith :: forall v eff a. (v -> AsyncEff eff Unit) -> Widget v eff a -> AsyncEff eff a
+runWidgetWith onViewChange (Widget w) = foldFree f w
+  where
+    f :: forall b. WidgetF v eff b -> AsyncEff eff b
+    f (Display v k) = do
+      onViewChange v
+      k

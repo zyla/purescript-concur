@@ -1,0 +1,25 @@
+{
+  "name": "purescript-concur",
+  "version": "1.0.0",
+  "description": "An attempt to port the [concur](https://github.com/ajnsit/concur) library to PureScript.",
+  "main": ".app.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zyla/purescript-concur.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zyla/purescript-concur/issues"
+  },
+  "homepage": "https://github.com/zyla/purescript-concur#readme",
+  "dependencies": {
+    "virtual-dom": "^2.1.1"
+  }
+}
