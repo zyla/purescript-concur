@@ -4,7 +4,7 @@ import Prelude
 
 import Concur.Core (Widget)
 import Concur.Notify (runAsyncEff)
-import Concur.VDom (HTML, el, input, runWidget, text)
+import Concur.React (HTML, el, input, runWidget, text)
 import Control.Alternative ((<|>))
 import Control.Lazy (fix)
 import Control.Monad.Eff (Eff)
