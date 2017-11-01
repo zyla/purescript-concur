@@ -2,8 +2,9 @@ module Concur.VDom where
 
 import Prelude
 
-import Concur.Core (Widget, awaitViewAction, display, liftAsyncEff, mapView, runWidgetWith)
-import Concur.Notify (AsyncEff, Channel, newChannel, runAsyncEff, yield)
+import Concur.Core (Widget, awaitViewAction, display, mapView, runWidgetWith)
+import Concur.Notify (AsyncEff, runAsyncEff)
+import Concur.Awaits (Channel, newChannel, yield)
 import Control.Alternative (alt, empty)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
@@ -61,7 +62,7 @@ onInputHandler :: forall eff. Channel String -> Node -> Eff eff Unit
 onInputHandler channel node = do
   setEventHandler node "oninput" (do
     value <- getValue node
-    runAsyncEff (yield channel value) pure
+    yield channel value
     )
 
 foreign import setEventHandler :: forall eff. Node -> String -> Eff eff Unit -> Eff eff Unit

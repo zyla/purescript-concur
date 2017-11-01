@@ -2,23 +2,14 @@ module Concur.React where
 
 import Prelude
 
-import Concur.Core (class MonadView, Widget, awaitViewAction, display, liftAsyncEff, mapView, orr, runWidgetWith)
-import Concur.Notify (AsyncEff, Channel, await, newChannel, runAsyncEff, yield)
-import Control.Alt (alt)
-import Control.Alternative (class Alternative, alt, empty)
-import Control.Monad.Eff (Eff)
+import Concur.Awaits (await, newChannel, yield)
+import Concur.Core (class MonadView, Widget, awaitViewAction, display, liftAwaits, mapView, orr, runWidgetWith)
+import Concur.Notify (AsyncEff)
+import Control.Alternative (class Alternative)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Uncurried (mkEffFn1)
-import Control.Monad.State (StateT(..), mapStateT)
 import DOM (DOM)
-import DOM.HTML.HTMLTextAreaElement (validity)
-import DOM.Node.Node (appendChild)
 import DOM.Node.Types (Element, Node)
-import Data.Foldable (foldr)
-import Data.Foreign (renderForeignError)
-import Data.Maybe (Maybe(..))
-import Data.Ref (Ref, newRef, readRef, writeRef)
-import React (Event, ReactElement, createElementTagName, createElementTagNameDynamic)
+import React (Event, ReactElement, createElementTagName)
 import React.DOM as R
 import React.DOM.Props (Props, unsafeFromPropsArray)
 import React.DOM.Props as P
@@ -58,7 +49,7 @@ input value =
     [createElementTagName "input"
       (unsafeFromPropsArray
          [ P.onChange $ \event -> do
-             runAsyncEff (yield channel (unsafeTargetValue event)) pure
+             yield channel (unsafeTargetValue event)
          , P.value value
          ]
       )
@@ -70,8 +61,8 @@ unsafeTargetValue event = (unsafeCoerce event).target.value
 -- | A button widget. Returns when pressed.
 button :: forall eff. Array Props -> Array (Widget HTML eff Unit) -> Widget HTML eff Unit
 button props children = do
-  channel <- liftAsyncEff newChannel
-  let handleClick _event = runAsyncEff (yield channel unit) pure
+  channel <- liftEff newChannel
+  let handleClick _event = yield channel unit
   el "button" (props <> [P.onClick handleClick]) $
-    [ liftAsyncEff (await channel) ] <>
+    [ liftAwaits (await channel) ] <>
     children

@@ -2,13 +2,15 @@ module Concur.Core where
 
 import Prelude
 
-import Concur.Notify (AsyncEff, Channel, await, never, newChannel)
-import Control.Alt (class Alt, alt, (<|>))
+import Concur.Awaits (Awaits, Channel, await, newChannel, runAwaits)
+import Concur.Notify (AsyncEff(..))
+import Control.Alt (class Alt, alt)
 import Control.Alternative (class Alternative, class Plus, empty)
+import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (class MonadEff, liftEff)
 import Control.Monad.Free (Free, foldFree, hoistFree, liftF, resume)
 import Control.Monad.Rec.Class (class MonadRec)
-import Control.Monad.State (StateT(..), mapStateT)
+import Control.Monad.State (StateT, mapStateT)
 import Data.Array (foldr)
 import Data.Either (Either(..))
 import Data.Monoid (class Monoid, mempty)
@@ -16,7 +18,7 @@ import Data.Newtype (class Newtype, over)
 
 data Notify a
 
-data WidgetF v eff k = Display v (AsyncEff eff k)
+data WidgetF v eff k = Effect (Eff eff k) | Display v (Awaits k)
 
 derive instance functorWidgetF :: Functor (WidgetF v eff)
 
@@ -30,49 +32,64 @@ derive newtype instance bindWidget :: Bind (Widget v eff)
 derive newtype instance monadWidget :: Monad (Widget v eff)
 derive newtype instance monadRecWidget :: MonadRec (Widget v eff)
 
-liftAsyncEff :: forall v eff a. Monoid v => AsyncEff eff a -> Widget v eff a
-liftAsyncEff = Widget <<< liftF <<< Display mempty
-
 instance monadEffWidget :: Monoid v => MonadEff eff (Widget v eff) where
-  liftEff = liftAsyncEff <<< liftEff
+  liftEff eff = Widget $ liftF $ Effect eff
 
 instance altWidget :: Monoid v => Alt (Widget v eff) where
   alt (Widget a) (Widget b) = Widget (altWidgetFree a b)
     where
       altWidgetFree a b =
         case resume a, resume b of
-          Right x, _ -> pure x
-          _, Right x -> pure x
+          Right x, _ ->
+            pure x
+
+          _, Right x ->
+            pure x
+
+          Left (Effect eff), _ ->
+            join $ liftF $ Effect (eff >>= \l -> pure (l `altWidgetFree` b))
+
+          _, Left (Effect eff) ->
+            join $ liftF $ Effect (eff >>= \r -> pure (a `altWidgetFree` r))
+
           Left (Display v1 k1), Left (Display v2 k2) ->
-            join $ liftF $ Display (v1 <> v2) $ do
-              result <- Left <$> k1 <|> Right <$> k2
-              case result of
-                Left result1 -> pure (result1 `altWidgetFree` b)
-                Right result2 -> pure (a `altWidgetFree` result2)
+            join $ liftF $ Display (v1 <> v2) $
+              map (\result1 -> result1 `altWidgetFree` b) k1 <>
+              map (\result2 -> a `altWidgetFree` result2) k2
 
 instance plusWidget :: Monoid v => Plus (Widget v eff) where
-  empty = liftAsyncEff empty
+  empty = display mempty
 
 instance alternativeWidget :: Monoid v => Alternative (Widget v eff)
 
 awaitViewAction :: forall a v eff. Monoid v => (Channel a -> v) -> Widget v eff a
 awaitViewAction f = do
-  ch <- liftAsyncEff newChannel
+  ch <- liftEff newChannel
   Widget $ liftF $ Display (f ch) (await ch)
 
 display :: forall v eff a. v -> Widget v eff a
-display v = Widget $ liftF $ Display v never
+display v = Widget $ liftF $ Display v mempty
+
+liftAwaits :: forall v eff a. Monoid v => Awaits a -> Widget v eff a
+liftAwaits awaits = Widget $ liftF $ Display mempty awaits
 
 mapViewWidget :: forall v v' eff. (v -> v') -> Widget v eff ~> Widget v' eff
-mapViewWidget f = over Widget (hoistFree (\(Display v k) -> Display (f v) k))
+mapViewWidget f = over Widget (hoistFree (mapViewWidgetF f))
+
+mapViewWidgetF :: forall v v' eff. (v -> v') -> WidgetF v eff ~> WidgetF v' eff
+mapViewWidgetF f (Effect eff) = Effect eff
+mapViewWidgetF f (Display v k) = Display (f v) k
 
 runWidgetWith :: forall v eff a. (v -> AsyncEff eff Unit) -> Widget v eff a -> AsyncEff eff a
 runWidgetWith onViewChange (Widget w) = foldFree f w
   where
-    f :: forall b. WidgetF v eff b -> AsyncEff eff b
-    f (Display v k) = do
+    f :: WidgetF v eff ~> AsyncEff eff
+
+    f (Effect eff) = liftEff eff
+
+    f (Display v awaits) = do
       onViewChange v
-      k
+      AsyncEff (\k -> runAwaits awaits k)
 
 class MonadView v m | m -> v where
   mapView :: (v -> v) -> m ~> m
