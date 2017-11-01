@@ -63,6 +63,8 @@ exports.race = function(a) {
   };
 };
 
+var nextId = 1;
+
 // race2 :: forall eff a
 //   . AsyncEff eff a
 //  -> AsyncEff eff a
@@ -71,6 +73,7 @@ exports.race2 = function(a) {
   return function(b) {
     return function(cont) {
       return function() {
+        var id = nextId++;
         var losingCont = null;
         var losingFinished = false;
         var losingFinishedValue = null;
@@ -79,14 +82,17 @@ exports.race2 = function(a) {
           return function() {
             onceCont = function(_, losingValue) {
               return function() {
-                if(losingCont) {
+                if(losingCont !== null) {
+                  console.log(id + ' second ' + (leftWasFirst? 'right': 'left'), 'already', losingValue);
                   losingCont(losingValue)();
                 } else {
+                  console.log(id + ' second ' + (leftWasFirst? 'right': 'left'), 'yet', losingValue);
                   losingFinished = true;
                   losingFinishedValue = losingValue;
                 }
               };
             };
+            console.log(id + ' first ' + (leftWasFirst? 'left': 'right'), winningValue);
             cont({
               left: leftWasFirst,
               winning: winningValue,
