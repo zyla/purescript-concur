@@ -13,7 +13,8 @@
     "purescript-free": "^4.1.0",
     "purescript-react": "^4.4.0",
     "purescript-react-dom": "^4.1.0",
-    "purescript-refs": "^3.0.0"
+    "purescript-refs": "^3.0.0",
+    "purescript-aff": "^4.0.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0",
