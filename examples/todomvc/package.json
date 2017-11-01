@@ -1,0 +1,11 @@
+{
+	"private": true,
+	"dependencies": {
+		"todomvc-app-css": "^2.1.0",
+		"todomvc-common": "^1.0.4"
+	},
+	"devDependencies": {
+		"pulp": "^12.0.1",
+		"purescript": "^0.11.6"
+	}
+}
