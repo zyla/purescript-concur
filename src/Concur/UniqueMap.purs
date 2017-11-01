@@ -12,10 +12,11 @@ module Concur.UniqueMap (
 import Prelude
 
 import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Ref (Ref, newRef, readRef, writeRef)
+import Control.Monad.Eff.Ref.Unsafe (unsafeRunRef)
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Data.Array as Array
 import Data.Maybe (Maybe)
-import Data.Ref (Ref, newRef, readRef, writeRef)
 import Data.StrMap (StrMap)
 import Data.StrMap as SM
 import Data.Tuple (Tuple(..))
@@ -28,7 +29,7 @@ nextUniqueRef :: Ref Int
 nextUniqueRef = unsafePerformEff (newRef 0)
 
 newUnique :: forall eff. Eff eff Unique
-newUnique = do
+newUnique = unsafeRunRef $ do
   id <- readRef nextUniqueRef
   writeRef nextUniqueRef (id + 1)
   pure (Unique (show id))

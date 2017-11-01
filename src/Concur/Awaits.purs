@@ -12,6 +12,8 @@ import Prelude
 import Concur.UniqueMap (UniqueMap)
 import Concur.UniqueMap as UM
 import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Ref (Ref, newRef, readRef, writeRef)
+import Control.Monad.Eff.Ref.Unsafe (unsafeRunRef)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Data.Array (uncons)
 import Data.Exists (Exists, mkExists, runExists)
@@ -19,7 +21,6 @@ import Data.Foldable (for_)
 import Data.Maybe (Maybe(..))
 import Data.Monoid (class Monoid)
 import Data.Newtype (class Newtype)
-import Data.Ref (Ref, newRef, readRef, writeRef)
 
 newtype IO a = IO (forall eff. Eff eff a)
 instance functorIO :: Functor IO where
@@ -57,10 +58,10 @@ await :: forall a. Channel a -> Awaits a
 await chan = Awaits [Await (mkExists (AwaitF chan id))]
 
 newChannel :: forall eff a. Eff eff (Channel a)
-newChannel = Channel <$> newRef { items: [], listeners: UM.empty }
+newChannel = unsafeRunRef $ Channel <$> newRef { items: [], listeners: UM.empty }
 
 yield :: forall eff a. Channel a -> a -> Eff eff Unit
-yield (Channel ref) item = do
+yield (Channel ref) item = unsafeRunRef $ do
   state <- readRef ref
   case UM.deleteAny state.listeners of
     Just { value: listener, map } -> do
@@ -72,7 +73,7 @@ yield (Channel ref) item = do
 -- | If the channel waited on has items, take the first item
 -- and return the value. Else no change to channel state.
 takeIfFull :: forall eff a. Await a -> Eff eff (Maybe a)
-takeIfFull (Await ex) =
+takeIfFull (Await ex) = unsafeRunRef $
   runExists (\(AwaitF (Channel ref) k) -> do
     state <- readRef ref
     case uncons state.items of
@@ -97,12 +98,12 @@ firstM f xs =
       pure Nothing
 
 runAwaits :: forall eff a. Awaits a -> (a -> Eff eff Unit) -> Eff eff Unit
-runAwaits (Awaits awaits) cont = do
+runAwaits (Awaits awaits) cont = unsafeRunRef $ do
   m_item <- firstM takeIfFull awaits
   case m_item of
 
     Just item ->
-      cont item
+      unsafeCoerceEff $ cont item
 
     Nothing -> do
       key <- UM.newUnique
@@ -113,7 +114,7 @@ runAwaits (Awaits awaits) cont = do
                 state <- readRef ref
                 writeRef ref $ state { listeners = UM.delete key state.listeners }
               ) ex
-            cont value
+            unsafeCoerceEff $ cont value
       
       for_ awaits $ \(Await ex) ->
         runExists (\(AwaitF (Channel ref) k) -> do
