@@ -1,3 +1,4 @@
+"use strict";
 
 // setEventHandler :: forall eff. Node -> String -> Eff eff Unit -> Eff eff Unit
 exports.setEventHandler = function(node) {

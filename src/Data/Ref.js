@@ -1,3 +1,4 @@
+"use strict";
 // data Ref :: Type -> Type
 
 // newRef :: forall eff a. a -> Eff eff (Ref a)
