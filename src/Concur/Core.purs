@@ -3,9 +3,9 @@ module Concur.Core where
 import Prelude
 
 import Concur.Awaits (Awaits, Channel, await, newChannel, runAwaits)
-import Concur.Notify (AsyncEff(..))
 import Control.Alt (class Alt, alt)
 import Control.Alternative (class Alternative, class Plus, empty)
+import Control.Monad.Aff (Aff, makeAff, nonCanceler)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (class MonadEff, liftEff)
 import Control.Monad.Free (Free, foldFree, hoistFree, liftF, resume)
@@ -80,16 +80,18 @@ mapViewWidgetF :: forall v v' eff. (v -> v') -> WidgetF v eff ~> WidgetF v' eff
 mapViewWidgetF f (Effect eff) = Effect eff
 mapViewWidgetF f (Display v k) = Display (f v) k
 
-runWidgetWith :: forall v eff a. (v -> AsyncEff eff Unit) -> Widget v eff a -> AsyncEff eff a
+runWidgetWith :: forall v eff a. (v -> Aff eff Unit) -> Widget v eff a -> Aff eff a
 runWidgetWith onViewChange (Widget w) = foldFree f w
   where
-    f :: WidgetF v eff ~> AsyncEff eff
+    f :: WidgetF v eff ~> Aff eff
 
     f (Effect eff) = liftEff eff
 
     f (Display v awaits) = do
       onViewChange v
-      AsyncEff (\k -> runAwaits awaits k)
+      makeAff $ \k -> do
+        runAwaits awaits (k <<< Right)
+        pure nonCanceler
 
 class MonadView v m | m -> v where
   mapView :: (v -> v) -> m ~> m

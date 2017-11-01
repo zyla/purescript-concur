@@ -4,10 +4,10 @@ import Prelude
 
 import Concur.Awaits (await, newChannel, yield)
 import Concur.Core (Widget, liftAwaits, orr)
-import Concur.Notify (runAsyncEff)
 import Concur.React (HTML, button, el, input, runWidget, text, unsafeTargetValue)
 import Control.Alternative (empty, (<|>))
 import Control.Lazy (fix)
+import Control.Monad.Aff (launchAff_)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (log)
@@ -209,4 +209,4 @@ getState = get
 main :: forall eff. Eff (dom :: DOM | eff) Unit
 main = do
   root <- getElementById "app"
-  runAsyncEff (runWidget root mainWidget) pure
+  launchAff_ (runWidget root mainWidget)

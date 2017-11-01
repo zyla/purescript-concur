@@ -4,8 +4,8 @@ import Prelude
 
 import Concur.Awaits (await, newChannel, yield)
 import Concur.Core (class MonadView, Widget, awaitViewAction, display, liftAwaits, mapView, orr, runWidgetWith)
-import Concur.Notify (AsyncEff)
 import Control.Alternative (class Alternative)
+import Control.Monad.Aff (Aff)
 import Control.Monad.Eff.Class (liftEff)
 import DOM (DOM)
 import DOM.Node.Types (Element, Node)
@@ -18,7 +18,7 @@ import Unsafe.Coerce (unsafeCoerce)
 
 type HTML = Array ReactElement
 
-runWidget :: forall eff a. Node -> Widget HTML (dom :: DOM | eff) a -> AsyncEff (dom :: DOM | eff) a
+runWidget :: forall eff a. Node -> Widget HTML (dom :: DOM | eff) a -> Aff (dom :: DOM | eff) a
 runWidget root widget = do
   let viewChanged elements = liftEff $ do
         _ <- render (createElementTagName "div" {} elements) (unsafeNodeToElement root)
