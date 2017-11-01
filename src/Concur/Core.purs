@@ -3,7 +3,7 @@ module Concur.Core where
 import Prelude
 
 import Concur.Channel (Awaits, Channel, await, newChannel, runAwaits)
-import Control.Alt (class Alt, alt)
+import Control.Alt (class Alt, alt, (<|>))
 import Control.Alternative (class Alternative, class Plus, empty)
 import Control.Monad.Aff (Aff, makeAff, nonCanceler)
 import Control.Monad.Eff (Eff)
@@ -66,6 +66,11 @@ awaitViewAction :: forall a v eff. Monoid v => (Channel a -> v) -> Widget v eff 
 awaitViewAction f = do
   ch <- liftEff newChannel
   Widget $ liftF $ Display (f ch) (await ch)
+
+awaitAction :: forall a v eff. Monoid v => (Channel a -> Widget v eff a) -> Widget v eff a
+awaitAction f = do
+  ch <- liftEff newChannel
+  f ch <|> liftAwaits (await ch)
 
 display :: forall v eff a. v -> Widget v eff a
 display v = Widget $ liftF $ Display v mempty
