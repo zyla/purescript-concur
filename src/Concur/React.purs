@@ -8,7 +8,7 @@ import Control.Alternative (class Alternative)
 import Control.Monad.Aff (Aff)
 import Control.Monad.Eff.Class (liftEff)
 import DOM (DOM)
-import DOM.Node.Types (Element, Node)
+import DOM.Node.Types (Element)
 import React (Event, ReactElement, createElementTagName)
 import React.DOM as R
 import React.DOM.Props (Props, unsafeFromPropsArray)
@@ -18,16 +18,13 @@ import Unsafe.Coerce (unsafeCoerce)
 
 type HTML = Array ReactElement
 
-runWidget :: forall eff a. Node -> Widget HTML (dom :: DOM | eff) a -> Aff (dom :: DOM | eff) a
+runWidget :: forall eff a. Element -> Widget HTML (dom :: DOM | eff) a -> Aff (dom :: DOM | eff) a
 runWidget root widget = do
   let viewChanged elements = liftEff $ do
-        _ <- render (createElementTagName "div" {} elements) (unsafeNodeToElement root)
+        _ <- render (createElementTagName "div" {} elements) root
         pure unit
 
   runWidgetWith viewChanged widget
-
-unsafeNodeToElement :: Node -> Element
-unsafeNodeToElement = unsafeCoerce
 
 el :: forall a m
    . MonadView HTML m
