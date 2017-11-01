@@ -2,17 +2,24 @@ module Main where
 
 import Prelude
 
-import Concur.Core (class MonadView, Widget, orr)
-import Concur.Notify (runAsyncEff)
-import Concur.React (HTML, button, el, input, runWidget, text)
+import Concur.Core (Widget, liftAsyncEff, orr)
+import Concur.Notify (await, fireAsyncEff, newChannel, yield)
+import Concur.React (HTML, button, el, input, runWidget, text, unsafeTargetValue)
 import Control.Alternative (empty, (<|>))
 import Control.Lazy (fix)
 import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Console (log)
+import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Control.Monad.Rec.Class (forever)
-import Control.Monad.State (StateT(..), evalStateT, execStateT, get, gets, modify, runStateT)
+import Control.Monad.State (StateT, evalStateT, get, gets, modify, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import DOM (DOM)
 import DOM.Node.Types (Node)
+import Data.Array (filter, head)
+import Data.Foldable (for_)
+import Data.Functor (voidRight)
+import Data.Tuple (Tuple(..))
 import React.DOM.Props as P
 
 foreign import getElementById :: forall eff. String -> Eff eff Node
@@ -29,13 +36,27 @@ initialForm =
   }
 
 mainWidget :: forall eff a. Widget HTML eff a
-mainWidget = forever $ do
-  form <- evalStateT form initialForm
-  orr
-    [ text ("First name: " <> form.firstName)
-    , text ("Last name: " <> form.lastName)
-    , button [] [ text "Next" ]
-    ]
+mainWidget =
+  el "div" [] [(fix $ \loop val -> input val >>= loop) "field 1"]
+  <|>
+  el "div" [] [(fix $ \loop val -> input val >>= loop) "field 2"]
+{-
+   (do
+     evalStateT advancedForm initialAF
+     text "Advanced form finished"
+   )
+   <|>
+  (do
+    form <- evalStateT form initialForm
+    orr
+      [ text ("First name: " <> form.firstName)
+      , text ("Last name: " <> form.lastName)
+--      , button [] [ text "Next" ]
+      ]
+   )
+   <|>
+   empty
+   -}
 
 data Action = Continue | Save
 
@@ -65,17 +86,115 @@ form = do
     Continue -> form
     Save -> getState
 
+data FileState = NotChosen | Chosen String
+
+data Choice = Default | Text String | File FileState
+
+data ChoiceType = CT_Default | CT_Text | CT_File
+
+type AdvancedForm =
+  { file1 :: Choice }
+
+l_file1 :: Lens AdvancedForm Choice
+l_file1 = lens _.file1 (_ { file1 = _ })
+
+initialAF :: AdvancedForm
+initialAF = { file1: Text "text" }
+
+choiceTypeMatches =
+  case _, _ of
+    CT_Default, Default -> true
+    CT_Text,    Text _ -> true
+    CT_File,    File _ -> true
+    _,          _      -> false
+
+zoom :: forall s m a. Monad m => Lens s a -> StateT a m ~> StateT s m
+zoom l inner = do
+  s <- get
+  Tuple result newState <- lift $ runStateT inner (l.get s)
+  put (l.set s newState)
+  pure result
+
+advancedForm :: forall eff. StateT AdvancedForm (Widget HTML eff) Unit
+advancedForm = do
+  action <- el "div" []
+    [ voidRight Continue $ zoom l_file1 $ do
+        choice <- get
+        orr
+          [ do newChoiceType <- orr
+                 [ label "Choice:"
+                 , lift $ select
+                     { options: [ CT_Default, CT_Text, CT_File ]
+                     , toString:
+                         case _ of
+                           CT_Default -> "Default"
+                           CT_Text -> "Text"
+                           CT_File -> "File"
+                     , isSelected: \option -> choiceTypeMatches option choice
+                     }
+                 ]
+               unless (choiceTypeMatches newChoiceType choice) $ do
+                 liftEff $ unsafeCoerceEff $ log "Changing choice type"
+                 put $
+                   case newChoiceType of
+                     CT_Default -> Default
+                     CT_Text -> Text ""
+                     CT_File -> File NotChosen
+
+          , case choice of
+              Default -> empty
+              Text text -> do
+                newText <- lift $ input text
+                liftEff $ unsafeCoerceEff $ log $ "new text: " <> newText
+                put (Text newText)
+              File _ -> empty
+          ]
+    , el "div" []
+        [ lift $ Save <$ button [] [ text "Save" ]
+        ]
+    ]
+
+  case action of
+    Continue -> advancedForm
+    Save -> pure unit
+
 label :: forall s eff a. String -> StateT s (Widget HTML eff) a
 label t =
   el "label" [ P.style { display: "block" } ]
     [ lift $ text t ]
+
+select :: forall eff a.
+  { options :: Array a
+  , toString :: a -> String
+  , isSelected :: a -> Boolean
+  } -> Widget HTML eff a
+select {options,toString,isSelected} = do
+  channel <- liftAsyncEff newChannel
+  orr
+    [ el "select"
+         [ P.onChange $ \event -> 
+              let value = unsafeTargetValue event
+              in
+              for_ (head (filter (\opt -> toString opt == value) options)) $ \newValue ->
+                fireAsyncEff (yield channel newValue)
+         ] $
+        map (\option ->
+               el "option"
+                 [ P.value (toString option)
+                 , P.selected (isSelected option)
+                 ]
+                 [ text (toString option) ]
+            )
+            options
+    , liftAsyncEff (await channel)
+    ]
 
 type Lens s a = { get :: s -> a, set :: s -> a -> s }
 
 lens :: forall s a. (s -> a) -> (s -> a -> s) -> Lens s a
 lens get set = {get,set}
 
-formInput :: forall label s eff. Lens s String -> StateT s (Widget HTML eff) Unit
+formInput :: forall s eff. Lens s String -> StateT s (Widget HTML eff) Unit
 formInput l = do
   value <- gets l.get
   newValue <- lift $ input value
@@ -87,4 +206,4 @@ getState = get
 main :: forall eff. Eff (dom :: DOM | eff) Unit
 main = do
   root <- getElementById "app"
-  runAsyncEff (runWidget root mainWidget) pure
+  fireAsyncEff (runWidget root mainWidget)

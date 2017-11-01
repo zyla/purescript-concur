@@ -12,6 +12,10 @@ newtype AsyncEff eff a = AsyncEff ((a -> Eff eff Unit) -> Eff eff Unit)
 runAsyncEff :: forall eff a. AsyncEff eff a -> (a -> Eff eff Unit) -> Eff eff Unit
 runAsyncEff (AsyncEff eff) = eff
 
+-- | Start an AsyncEff computation, and don't get notification when it finishes.
+fireAsyncEff :: forall eff. AsyncEff eff Unit -> Eff eff Unit
+fireAsyncEff action = runAsyncEff action pure
+
 instance functorAsyncEff :: Functor (AsyncEff eff) where
   map f (AsyncEff eff) = AsyncEff (\cont -> eff (f >>> cont))
 
@@ -57,6 +61,11 @@ never = AsyncEff $ \_ -> pure unit
 
 -- | Run two computations in parallel and return the result of whichever finished first.
 foreign import race :: forall eff a. AsyncEff eff a -> AsyncEff eff a -> AsyncEff eff a
+
+foreign import race2 :: forall eff a
+   . AsyncEff eff a
+  -> AsyncEff eff a
+  -> AsyncEff eff { left :: Boolean, winning :: a, losing :: AsyncEff eff a }
 
 instance altAsyncEff :: Alt (AsyncEff eff) where
   alt = race

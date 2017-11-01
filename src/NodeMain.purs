@@ -1,12 +1,12 @@
-module Main where
+module NodeMain where
 
 import Prelude
 
-import Concur.Core (Widget(..), WidgetF(..), display, liftAsyncEff, mapView)
-import Concur.Notify (AsyncEff, Channel, await, newChannel, runAsyncEff, yield)
+import Concur.Core (Widget(..), WidgetF(..), display, liftAsyncEff, mapView, runWidgetWith)
+import Concur.Notify (AsyncEff, Channel, await, fireAsyncEff, newChannel, runAsyncEff, yield)
 import Control.Alt ((<|>))
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Class (class MonadEff, liftEff)
 import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Free (foldFree)
 import Control.Monad.Rec.Class (forever)
@@ -37,16 +37,12 @@ textInput kbd = do
     go value'
 
 runWidgetText :: forall eff a. Widget View (console :: CONSOLE | eff) a -> AsyncEff (console :: CONSOLE | eff) a
-runWidgetText (Widget w) = foldFree f w
-  where
-    f :: forall b. WidgetF View (console :: CONSOLE | eff) b -> AsyncEff (console :: CONSOLE | eff) b
-    f (Display v k) = do
-      liftEff $ do
-        log "NEW VIEW:"
-        log "-------------------------"
-        traverse_ log v
-        log "-------------------------"
-      k
+runWidgetText = runWidgetWith $ \v ->
+  liftEff $ do
+    log "NEW VIEW:"
+    log "-------------------------"
+    traverse_ log v
+    log "-------------------------"
 
 main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = runAsyncEff asyncMain pure
@@ -58,8 +54,9 @@ asyncMain = do
   runWidgetText (widget kbd)
   liftEff (log "program finished")
 
+handleInput :: forall eff m. MonadEff eff m => Channel String -> m Unit
 handleInput kbd = liftEff $
                      onStdin $ \s ->
-                       runAsyncEff (yield kbd s) pure
+                       fireAsyncEff (yield kbd s)
 
 foreign import onStdin :: forall eff. (String -> Eff eff Unit) -> Eff eff Unit

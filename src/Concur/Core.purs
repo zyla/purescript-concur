@@ -2,7 +2,7 @@ module Concur.Core where
 
 import Prelude
 
-import Concur.Notify (AsyncEff, Channel, await, never, newChannel)
+import Concur.Notify (AsyncEff, Channel, await, never, newChannel, race2)
 import Control.Alt (class Alt, alt, (<|>))
 import Control.Alternative (class Alternative, class Plus, empty)
 import Control.Monad.Eff.Class (class MonadEff, liftEff)
@@ -45,10 +45,13 @@ instance altWidget :: Monoid v => Alt (Widget v eff) where
           _, Right x -> pure x
           Left (Display v1 k1), Left (Display v2 k2) ->
             join $ liftF $ Display (v1 <> v2) $ do
-              result <- Left <$> k1 <|> Right <$> k2
-              case result of
-                Left result1 -> pure (result1 `altWidgetFree` b)
-                Right result2 -> pure (a `altWidgetFree` result2)
+              result <- race2 k1 k2
+              let l = result.losing
+              case result.left of
+                true ->
+                  pure (result.winning `altWidgetFree` join (liftF (Display v2 l)))
+                false ->
+                  pure (a `altWidgetFree` result.winning)
 
 instance plusWidget :: Monoid v => Plus (Widget v eff) where
   empty = liftAsyncEff empty
