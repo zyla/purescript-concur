@@ -16,7 +16,8 @@
     "purescript-react-dom": "^4.1.0"
   },
   "devDependencies": {
-    "purescript-psci-support": "^3.0.0"
+    "purescript-psci-support": "^3.0.0",
+    "purescript-spec": "^2.0.0"
   },
   "resolutions": {
     "purescript-maybe": "^3.0.0",
