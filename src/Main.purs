@@ -103,6 +103,7 @@ l_file1 = lens _.file1 (_ { file1 = _ })
 initialAF :: AdvancedForm
 initialAF = { file1: Text "text" }
 
+choiceTypeMatches :: ChoiceType -> Choice -> Boolean
 choiceTypeMatches =
   case _, _ of
     CT_Default, Default -> true
