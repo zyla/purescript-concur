@@ -5,7 +5,7 @@ import Prelude
 import Concur.Channel (yield)
 import Concur.Core (Widget, awaitAction, orr)
 import Concur.React (HTML, button, checkbox, el, inputOnEnter, runWidget, text, unsafeTargetValue)
-import Control.Alternative (class Alternative, empty)
+import Control.Alternative (class Alternative)
 import Control.Monad.Aff (launchAff_)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, log)
@@ -98,34 +98,26 @@ todoItemWidget = go false
               >>= \completed ->
                   pure $ Right $ Just $ todo { completed = completed }
 
-          , if not editing
-              then do
-                awaitAction $ \channel ->
-                  el "label"
-                    [ P.onDoubleClick $ \_ ->
-                        unless todo.completed $
-                          yield channel unit
-                    ]
-                    [ text todo.text ]
-                pure $ Left true
-              else
-                empty
+          , do awaitAction $ \channel ->
+                 el "label"
+                   [ P.onDoubleClick $ \_ ->
+                       unless todo.completed $
+                         yield channel unit
+                   ]
+                   [ text todo.text ]
+               pure $ Left true
 
           , button [ P.className "destroy" ] []
               *> pure (Right Nothing)
 
           ]
-      , if editing
-          then do
-            newText <- awaitAction $ \channel ->
-              inputOnEnter todo.text
-                [ P.className "edit"
-                , P.autoFocus true
-                , P.onBlur $ \event -> yield channel (unsafeTargetValue event)
-                ]
-            pure $ Right $ Just $ todo { text = newText }
-          else
-            empty
+      , do newText <- awaitAction $ \channel ->
+             inputOnEnter todo.text
+               [ P.className "edit"
+               , P.autoFocus true
+               , P.onBlur $ \event -> yield channel (unsafeTargetValue event) -- FIXME
+               ]
+           pure $ Right $ Just $ todo { text = newText }
       ]
 
     case action of
