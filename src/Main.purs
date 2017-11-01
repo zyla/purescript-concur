@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import Concur.Awaits (await, newChannel, yield)
+import Concur.Channel (await, newChannel, yield)
 import Concur.Core (Widget, liftAwaits, orr)
 import Concur.React (HTML, button, el, input, runWidget, text, unsafeTargetValue)
 import Control.Alternative (empty, (<|>))

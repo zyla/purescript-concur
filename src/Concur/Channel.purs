@@ -1,4 +1,4 @@
-module Concur.Awaits (
+module Concur.Channel (
     Awaits
   , Channel
   , newChannel

@@ -2,7 +2,7 @@ module Concur.Core where
 
 import Prelude
 
-import Concur.Awaits (Awaits, Channel, await, newChannel, runAwaits)
+import Concur.Channel (Awaits, Channel, await, newChannel, runAwaits)
 import Control.Alt (class Alt, alt)
 import Control.Alternative (class Alternative, class Plus, empty)
 import Control.Monad.Aff (Aff, makeAff, nonCanceler)

@@ -2,7 +2,7 @@ module Concur.React where
 
 import Prelude
 
-import Concur.Awaits (await, newChannel, yield)
+import Concur.Channel (await, newChannel, yield)
 import Concur.Core (class MonadView, Widget, awaitViewAction, display, liftAwaits, mapView, orr, runWidgetWith)
 import Control.Alternative (class Alternative)
 import Control.Monad.Aff (Aff)

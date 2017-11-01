@@ -1,8 +1,8 @@
-module AwaitsSpec where
+module ChannelSpec where
 
 import Prelude
 
-import Concur.Awaits (Awaits, await, newChannel, runAwaits, yield)
+import Concur.Channel (Awaits, await, newChannel, runAwaits, yield)
 import Control.Monad.Aff (Aff, forkAff, joinFiber, makeAff, nonCanceler)
 import Control.Monad.Eff.Class (liftEff)
 import Data.Array as Array
