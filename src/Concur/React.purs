@@ -40,20 +40,41 @@ el tag props =
 text :: forall eff a. String -> Widget HTML eff a
 text t = display [R.text t]
 
-input :: forall eff. String -> Widget HTML eff String
-input value =
+-- | Input widget, rendering the given value. Returns on each change.
+inputOnChange :: forall eff. String -> Array Props -> Widget HTML eff String
+inputOnChange value props =
   awaitViewAction $ \channel ->
-    [createElementTagName "input"
-      (unsafeFromPropsArray
-         [ P.onChange $ \event -> do
-             yield channel (unsafeTargetValue event)
-         , P.value value
-         ]
-      )
-      []]
+    [ createElementTagName "input"
+        (unsafeFromPropsArray $
+           [ P.onChange $ \event -> yield channel (unsafeTargetValue event)
+           , P.value value
+           ] <> props
+        )
+        []
+    ]
+
+-- | Input widget, with the given initial value. Returns on Enter keypress.
+inputOnEnter :: forall eff. String -> Array Props -> Widget HTML eff String
+inputOnEnter initialValue props = do
+  channel <- liftEff newChannel
+  go channel initialValue
+
+  where
+  go channel value = orr
+    [ do newValue <- inputOnChange value $
+           [ P.onKeyDown $ \keyEvent -> do
+                 when (keyEvent.key == "Enter") $
+                   yield channel (unsafeTargetValue (unsafeCoerce keyEvent))
+           ] <> props
+         go channel newValue
+    , liftAwaits (await channel)
+    ]
 
 unsafeTargetValue :: Event -> String
 unsafeTargetValue event = (unsafeCoerce event).target.value
+
+unsafeTargetChecked :: Event -> Boolean
+unsafeTargetChecked event = (unsafeCoerce event).target.checked
 
 -- | A button widget. Returns when pressed.
 button :: forall eff. Array Props -> Array (Widget HTML eff Unit) -> Widget HTML eff Unit
@@ -63,3 +84,17 @@ button props children = do
   el "button" (props <> [P.onClick handleClick]) $
     [ liftAwaits (await channel) ] <>
     children
+
+-- | Checkbox, rendering the given value. Returns on each change.
+checkbox :: forall eff. Boolean -> Array Props -> Widget HTML eff Boolean
+checkbox value props =
+  awaitViewAction $ \channel ->
+    [ createElementTagName "input"
+        (unsafeFromPropsArray $
+           [ P.onChange $ \event -> yield channel (unsafeTargetChecked event)
+           , P._type "checkbox"
+           , P.checked value
+           ] <> props
+        )
+        []
+    ]
