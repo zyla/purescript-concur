@@ -2,12 +2,11 @@
   "name": "purescript-concur",
   "version": "1.0.0",
   "description": "An attempt to port the [concur](https://github.com/ajnsit/concur) library to PureScript.",
-  "main": ".app.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "pulp test"
   },
   "repository": {
     "type": "git",
