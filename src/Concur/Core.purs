@@ -46,6 +46,10 @@ instance altWidget :: Monoid v => Alt (Widget v eff) where
           _, Right x ->
             pure x
 
+          Left (Effect effl), Left (Effect effr) ->
+            join $ liftF $ Effect $
+              altWidgetFree <$> effl <*> effr
+
           Left (Effect eff), _ ->
             join $ liftF $ Effect (map (\l -> l `altWidgetFree` b) eff)
 
